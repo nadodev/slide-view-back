@@ -114,10 +114,12 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'avatar' => $user->avatar,
                 'role' => $user->role,
                 'plan' => $user->plan,
                 'plan_expires_at' => $user->plan_expires_at,
                 'has_premium' => $user->hasPremiumPlan(),
+                'provider' => $user->provider,
                 'created_at' => $user->created_at,
             ],
         ]);

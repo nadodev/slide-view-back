@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\DraftController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PresentationController;
 use App\Http\Controllers\Api\ShareController;
+use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\TemplateController;
 use App\Models\Plan;
 use Illuminate\Http\Request;
@@ -23,6 +24,17 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    
+    // Login Social
+    Route::get('/providers', [SocialAuthController::class, 'providers']);
+    
+    // Google OAuth
+    Route::get('/google/redirect', [SocialAuthController::class, 'googleRedirect']);
+    Route::post('/google/callback', [SocialAuthController::class, 'googleCallback']);
+    
+    // GitHub OAuth
+    Route::get('/github/redirect', [SocialAuthController::class, 'githubRedirect']);
+    Route::post('/github/callback', [SocialAuthController::class, 'githubCallback']);
 });
 
 // Rotas protegidas (requerem autenticação via Sanctum)

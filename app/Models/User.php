@@ -26,6 +26,10 @@ class User extends Authenticatable
         'role',
         'plan_id',
         'plan_expires_at',
+        'provider',
+        'provider_id',
+        'avatar',
+        'email_verified_at',
     ];
 
     /**
