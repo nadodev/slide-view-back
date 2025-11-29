@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PresentationController;
 use App\Http\Controllers\Api\ShareController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TemplateController;
 use App\Models\Plan;
 use Illuminate\Http\Request;
@@ -51,6 +52,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('plans')->group(function () {
         Route::get('/usage', [PlanController::class, 'usage']);
         Route::post('/change', [PlanController::class, 'changePlan']);
+    });
+
+    // Rotas de assinatura (Asaas)
+    Route::prefix('subscription')->group(function () {
+        Route::get('/status', [SubscriptionController::class, 'status']);
+        Route::post('/checkout', [SubscriptionController::class, 'checkout']);
+        Route::post('/cancel', [SubscriptionController::class, 'cancel']);
+        Route::get('/payments', [SubscriptionController::class, 'payments']);
+        Route::get('/payments/{payment}', [SubscriptionController::class, 'paymentDetails']);
     });
 
     // Rotas de rascunhos (auto-save)
@@ -133,6 +143,7 @@ Route::prefix('public')->group(function () {
 Route::get('/templates/public', [TemplateController::class, 'index']);
 Route::get('/templates/categories', [TemplateController::class, 'categories']);
 
-// Webhook para pagamentos (Stripe/Paddle) - sem autenticação
-Route::post('/webhooks/payments', [PlanController::class, 'webhook']);
+// Webhooks de pagamento - sem autenticação
+Route::post('/webhooks/payments', [PlanController::class, 'webhook']); // Legacy
+Route::post('/webhooks/asaas', [SubscriptionController::class, 'webhook']); // Asaas
 

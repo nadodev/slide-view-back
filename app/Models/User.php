@@ -30,6 +30,10 @@ class User extends Authenticatable
         'provider_id',
         'avatar',
         'email_verified_at',
+        'asaas_customer_id',
+        'asaas_subscription_id',
+        'subscription_status',
+        'subscription_next_due_date',
     ];
 
     /**
@@ -52,8 +56,17 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'plan_expires_at' => 'datetime',
+            'subscription_next_due_date' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Pagamentos do usuário
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 
     /**

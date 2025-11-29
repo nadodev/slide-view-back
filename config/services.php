@@ -53,4 +53,16 @@ return [
         'redirect' => env('GITHUB_REDIRECT_URI', 'http://localhost:3000/auth/github/callback'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Asaas Payment Gateway
+    |--------------------------------------------------------------------------
+    */
+
+    'asaas' => [
+        'api_key' => env('ASAAS_API_KEY'),
+        'sandbox' => env('ASAAS_SANDBOX', true),
+        'webhook_token' => env('ASAAS_WEBHOOK_TOKEN'),
+    ],
+
 ];
