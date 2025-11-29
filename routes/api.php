@@ -36,6 +36,20 @@ Route::prefix('auth')->group(function () {
     // GitHub OAuth
     Route::get('/github/redirect', [SocialAuthController::class, 'githubRedirect']);
     Route::get('/github/callback', [SocialAuthController::class, 'githubCallback']);
+    
+    // Rota de teste para debug
+    Route::get('/test-callback', function (Request $request) {
+        \Log::info('Test Callback - Rota funcionando', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'query' => $request->query(),
+        ]);
+        return response()->json([
+            'message' => 'Rota de teste funcionando',
+            'method' => $request->method(),
+            'query' => $request->query(),
+        ]);
+    });
 });
 
 // Rotas protegidas (requerem autenticação via Sanctum)
