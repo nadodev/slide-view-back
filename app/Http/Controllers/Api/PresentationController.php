@@ -165,8 +165,10 @@ class PresentationController extends Controller
      */
     public function updateSlides(Request $request, Presentation $presentation): JsonResponse
     {
+        $user = $request->user();
+
         // Verificar se a apresentação pertence ao usuário
-        if ($presentation->user_id !== $request->user()->id) {
+        if ($presentation->user_id !== $user->id) {
             return response()->json([
                 'message' => 'Apresentação não encontrada.',
             ], 404);
@@ -184,18 +186,57 @@ class PresentationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Deletar slides antigos
-            $presentation->slides()->delete();
+            $existingSlideIds = $presentation->slides()->pluck('id')->toArray();
+            $updatedSlideIds = [];
 
-            // Criar novos slides
             foreach ($validated['slides'] as $index => $slideData) {
-                $presentation->slides()->create([
-                    'order' => $index,
-                    'title' => $slideData['title'] ?? null,
-                    'content' => $slideData['content'],
-                    'notes' => $slideData['notes'] ?? null,
-                    'metadata' => $slideData['metadata'] ?? null,
-                ]);
+                $slideId = $slideData['id'] ?? null;
+
+                if ($slideId && in_array($slideId, $existingSlideIds)) {
+                    // Atualizar slide existente
+                    $slide = Slide::find($slideId);
+                    
+                    if ($slide && $slide->presentation_id === $presentation->id) {
+                        // Verificar se houve alteração no conteúdo
+                        $hasContentChange = $slide->content !== $slideData['content'] 
+                            || $slide->title !== ($slideData['title'] ?? null)
+                            || $slide->notes !== ($slideData['notes'] ?? null);
+
+                        // Salvar versão ANTES de atualizar (se houve mudança)
+                        if ($hasContentChange) {
+                            $slide->saveVersion($user, 'Auto-save');
+                        }
+
+                        $slide->update([
+                            'order' => $index,
+                            'title' => $slideData['title'] ?? null,
+                            'content' => $slideData['content'],
+                            'notes' => $slideData['notes'] ?? null,
+                            'metadata' => $slideData['metadata'] ?? null,
+                        ]);
+
+                        $updatedSlideIds[] = $slideId;
+                    }
+                } else {
+                    // Criar novo slide
+                    $newSlide = $presentation->slides()->create([
+                        'order' => $index,
+                        'title' => $slideData['title'] ?? null,
+                        'content' => $slideData['content'],
+                        'notes' => $slideData['notes'] ?? null,
+                        'metadata' => $slideData['metadata'] ?? null,
+                    ]);
+
+                    // Salvar versão inicial do novo slide
+                    $newSlide->saveVersion($user, 'Versão inicial');
+                    $updatedSlideIds[] = $newSlide->id;
+                }
+            }
+
+            // Deletar slides que foram removidos
+            $slidesToDelete = array_diff($existingSlideIds, $updatedSlideIds);
+            if (!empty($slidesToDelete)) {
+                $presentation->slides()->whereIn('id', $slidesToDelete)->delete();
             }
 
             $presentation->update(['last_edited_at' => now()]);
@@ -366,6 +407,92 @@ class PresentationController extends Controller
                 'message' => 'Erro ao duplicar apresentação.',
             ], 500);
         }
+    }
+
+    /**
+     * Obter versões de um slide
+     */
+    public function getSlideVersions(Request $request, Presentation $presentation, Slide $slide): JsonResponse
+    {
+        if ($presentation->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Apresentação não encontrada.'], 404);
+        }
+
+        if ($slide->presentation_id !== $presentation->id) {
+            return response()->json(['message' => 'Slide não encontrado.'], 404);
+        }
+
+        $versions = $slide->versions()
+            ->with('user:id,name')
+            ->orderBy('version_number', 'desc')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'versions' => $versions,
+            'slide_id' => $slide->id,
+        ]);
+    }
+
+    /**
+     * Salvar versão de um slide
+     */
+    public function saveSlideVersion(Request $request, Presentation $presentation, Slide $slide): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($presentation->user_id !== $user->id) {
+            return response()->json(['message' => 'Apresentação não encontrada.'], 404);
+        }
+
+        if ($slide->presentation_id !== $presentation->id) {
+            return response()->json(['message' => 'Slide não encontrado.'], 404);
+        }
+
+        $validated = $request->validate([
+            'change_description' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $version = $slide->saveVersion($user, $validated['change_description'] ?? null);
+
+        return response()->json([
+            'message' => 'Versão salva com sucesso!',
+            'version' => $version,
+        ], 201);
+    }
+
+    /**
+     * Restaurar versão de um slide
+     */
+    public function restoreSlideVersion(Request $request, Presentation $presentation, Slide $slide, $versionId): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($presentation->user_id !== $user->id) {
+            return response()->json(['message' => 'Apresentação não encontrada.'], 404);
+        }
+
+        if ($slide->presentation_id !== $presentation->id) {
+            return response()->json(['message' => 'Slide não encontrado.'], 404);
+        }
+
+        $version = $slide->versions()->find($versionId);
+
+        if (!$version) {
+            return response()->json(['message' => 'Versão não encontrada.'], 404);
+        }
+
+        // Salvar versão atual antes de restaurar
+        $slide->saveVersion($user, 'Antes de restaurar para versão ' . $version->version_number);
+
+        // Restaurar
+        $slide->restoreVersion($version);
+        $presentation->update(['last_edited_at' => now()]);
+
+        return response()->json([
+            'message' => 'Slide restaurado para a versão ' . $version->version_number,
+            'slide' => $slide->fresh(),
+        ]);
     }
 }
 

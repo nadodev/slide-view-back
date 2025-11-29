@@ -69,6 +69,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Rascunhos do usuário
+     */
+    public function drafts(): HasMany
+    {
+        return $this->hasMany(Draft::class);
+    }
+
+    /**
      * Verifica se o usuário é admin
      */
     public function isAdmin(): bool
@@ -126,5 +134,63 @@ class User extends Authenticatable
         }
 
         return $this->presentations()->count() < $plan->max_presentations;
+    }
+
+    /**
+     * Verifica se o usuário pode adicionar mais slides em uma apresentação
+     */
+    public function canAddSlide(Presentation $presentation): bool
+    {
+        $plan = $this->plan;
+        
+        // Se não tem plano, limite free padrão
+        if (!$plan) {
+            return $presentation->slides()->count() < 10; // Limite free padrão
+        }
+
+        // Se o plano não tem limite (null), permite
+        if ($plan->max_slides === null) {
+            return true;
+        }
+
+        return $presentation->slides()->count() < $plan->max_slides;
+    }
+
+    /**
+     * Retorna informações de uso do plano
+     */
+    public function getPlanUsage(): array
+    {
+        $plan = $this->plan;
+        $presentationsCount = $this->presentations()->count();
+        $totalSlidesCount = Slide::whereIn('presentation_id', $this->presentations()->pluck('id'))->count();
+
+        $limits = [
+            'presentations' => [
+                'used' => $presentationsCount,
+                'max' => $plan?->max_presentations ?? 3,
+                'unlimited' => $plan?->max_presentations === null,
+            ],
+            'slides_per_presentation' => [
+                'max' => $plan?->max_slides ?? 10,
+                'unlimited' => $plan?->max_slides === null,
+            ],
+            'total_slides' => $totalSlidesCount,
+        ];
+
+        return [
+            'plan' => $plan ? [
+                'name' => $plan->name,
+                'slug' => $plan->slug,
+                'features' => $plan->features,
+            ] : [
+                'name' => 'Free',
+                'slug' => 'free',
+                'features' => ['Até 3 apresentações', 'Até 10 slides por apresentação'],
+            ],
+            'usage' => $limits,
+            'is_active' => $this->hasPlanActive(),
+            'expires_at' => $this->plan_expires_at,
+        ];
     }
 }

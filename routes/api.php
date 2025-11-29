@@ -1,7 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DraftController;
+use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PresentationController;
+use App\Http\Controllers\Api\ShareController;
+use App\Http\Controllers\Api\TemplateController;
 use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +35,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
     });
 
+    // Rotas de planos
+    Route::prefix('plans')->group(function () {
+        Route::get('/usage', [PlanController::class, 'usage']);
+        Route::post('/change', [PlanController::class, 'changePlan']);
+    });
+
+    // Rotas de rascunhos (auto-save)
+    Route::prefix('drafts')->group(function () {
+        Route::get('/', [DraftController::class, 'index']);
+        Route::post('/', [DraftController::class, 'save']);
+        Route::get('/{draft}', [DraftController::class, 'show']);
+        Route::delete('/{draft}', [DraftController::class, 'destroy']);
+        Route::post('/cleanup', [DraftController::class, 'cleanup']);
+    });
+
     // Rotas de apresentações
     Route::prefix('presentations')->group(function () {
         Route::get('/', [PresentationController::class, 'index']);
@@ -45,8 +64,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{presentation}/slides/{slide}', [PresentationController::class, 'updateSlide']);
         Route::delete('/{presentation}/slides/{slide}', [PresentationController::class, 'deleteSlide']);
         
+        // Versões de slides
+        Route::get('/{presentation}/slides/{slide}/versions', [PresentationController::class, 'getSlideVersions']);
+        Route::post('/{presentation}/slides/{slide}/versions', [PresentationController::class, 'saveSlideVersion']);
+        Route::post('/{presentation}/slides/{slide}/versions/{version}/restore', [PresentationController::class, 'restoreSlideVersion']);
+        
         // Ações especiais
         Route::post('/{presentation}/duplicate', [PresentationController::class, 'duplicate']);
+
+        // Compartilhamento
+        Route::get('/{presentation}/share', [ShareController::class, 'getShareSettings']);
+        Route::post('/{presentation}/share/enable', [ShareController::class, 'enableSharing']);
+        Route::post('/{presentation}/share/disable', [ShareController::class, 'disableSharing']);
+        Route::put('/{presentation}/share', [ShareController::class, 'updateShareSettings']);
+        Route::post('/{presentation}/share/regenerate', [ShareController::class, 'regenerateToken']);
+    });
+
+    // Templates
+    Route::prefix('templates')->group(function () {
+        Route::get('/', [TemplateController::class, 'index']);
+        Route::get('/categories', [TemplateController::class, 'categories']);
+        Route::get('/{template}', [TemplateController::class, 'show']);
+        Route::post('/{template}/use', [TemplateController::class, 'useTemplate']);
     });
 });
 
@@ -70,9 +109,18 @@ Route::get('/health', function () {
 });
 
 // Rota pública para listar planos disponíveis
-Route::get('/plans', function () {
-    return response()->json([
-        'plans' => Plan::active()->get(['id', 'name', 'slug', 'description', 'price', 'billing_cycle', 'features']),
-    ]);
+Route::get('/plans', [PlanController::class, 'index']);
+
+// Rotas públicas para visualização de apresentações compartilhadas
+Route::prefix('public')->group(function () {
+    Route::get('/presentations/{token}', [ShareController::class, 'viewPublic']);
+    Route::get('/embed/{token}', [ShareController::class, 'getEmbed']);
 });
+
+// Templates públicos (listagem)
+Route::get('/templates/public', [TemplateController::class, 'index']);
+Route::get('/templates/categories', [TemplateController::class, 'categories']);
+
+// Webhook para pagamentos (Stripe/Paddle) - sem autenticação
+Route::post('/webhooks/payments', [PlanController::class, 'webhook']);
 

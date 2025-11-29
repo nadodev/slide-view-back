@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Slide extends Model
 {
@@ -33,6 +34,45 @@ class Slide extends Model
     public function presentation(): BelongsTo
     {
         return $this->belongsTo(Presentation::class);
+    }
+
+    /**
+     * Versões deste slide
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(SlideVersion::class)->orderBy('version_number', 'desc');
+    }
+
+    /**
+     * Salva uma versão do slide atual
+     */
+    public function saveVersion(User $user, ?string $changeDescription = null): SlideVersion
+    {
+        $lastVersion = $this->versions()->max('version_number') ?? 0;
+
+        return $this->versions()->create([
+            'user_id' => $user->id,
+            'version_number' => $lastVersion + 1,
+            'title' => $this->title,
+            'content' => $this->content,
+            'notes' => $this->notes,
+            'metadata' => $this->metadata,
+            'change_description' => $changeDescription,
+        ]);
+    }
+
+    /**
+     * Restaura uma versão específica
+     */
+    public function restoreVersion(SlideVersion $version): bool
+    {
+        return $this->update([
+            'title' => $version->title,
+            'content' => $version->content,
+            'notes' => $version->notes,
+            'metadata' => $version->metadata,
+        ]);
     }
 
     /**
