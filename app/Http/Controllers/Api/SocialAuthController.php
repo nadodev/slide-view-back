@@ -45,9 +45,14 @@ class SocialAuthController extends Controller
      */
     public function googleCallback(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'code' => ['required', 'string'],
-        ]);
+        // Pegar code da query string (GET) ou do body (POST)
+        $code = $request->query('code') ?? $request->input('code');
+        
+        if (!$code) {
+            return response()->json([
+                'message' => 'Código de autorização não fornecido.',
+            ], 400);
+        }
 
         try {
             // Trocar código por access token
@@ -56,7 +61,7 @@ class SocialAuthController extends Controller
                 'client_secret' => config('services.google.client_secret'),
                 'redirect_uri' => config('services.google.redirect'),
                 'grant_type' => 'authorization_code',
-                'code' => $validated['code'],
+                'code' => $code,
             ]);
 
             if (!$tokenResponse->successful()) {
@@ -139,9 +144,14 @@ class SocialAuthController extends Controller
      */
     public function githubCallback(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'code' => ['required', 'string'],
-        ]);
+        // Pegar code da query string (GET) ou do body (POST)
+        $code = $request->query('code') ?? $request->input('code');
+        
+        if (!$code) {
+            return response()->json([
+                'message' => 'Código de autorização não fornecido.',
+            ], 400);
+        }
 
         try {
             // Trocar código por access token
@@ -150,7 +160,7 @@ class SocialAuthController extends Controller
                 ->post('https://github.com/login/oauth/access_token', [
                     'client_id' => config('services.github.client_id'),
                     'client_secret' => config('services.github.client_secret'),
-                    'code' => $validated['code'],
+                    'code' => $code,
                     'redirect_uri' => config('services.github.redirect'),
                 ]);
 

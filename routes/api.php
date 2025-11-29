@@ -31,11 +31,11 @@ Route::prefix('auth')->group(function () {
     
     // Google OAuth
     Route::get('/google/redirect', [SocialAuthController::class, 'googleRedirect']);
-    Route::post('/google/callback', [SocialAuthController::class, 'googleCallback']);
+    Route::get('/google/callback', [SocialAuthController::class, 'googleCallback']);
     
     // GitHub OAuth
     Route::get('/github/redirect', [SocialAuthController::class, 'githubRedirect']);
-    Route::post('/github/callback', [SocialAuthController::class, 'githubCallback']);
+    Route::get('/github/callback', [SocialAuthController::class, 'githubCallback']);
 });
 
 // Rotas protegidas (requerem autenticação via Sanctum)
